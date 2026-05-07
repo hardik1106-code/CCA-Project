@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Certificate Dashboard</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+<link href="{{ url_for('static', path='/style2.css') }}" rel="stylesheet">
+<script src="/static/script2.js"></script>
+
+</head>
+
+<body>
+
+<header>
+    Certificate & CA Dashboard
+</header>
+
+<div class="container">
+
+    <input 
+        type="text" 
+        class="search-box"
+        placeholder="Search by domain..."
+        onkeyup="searchTable()"
+        id="searchInput"
+        style="width:100%; padding:10px; margin-bottom:15px;"
+    >
+
+    <table id="certTable">
+        <thead>
+            <tr>
+                <th>Domain</th>
+                <th>CA ID</th>
+                <th>CA Details</th>
+            </tr>
+        </thead>
+
+        <tbody>
+        {% for cert in certs %}
+            <tr>
+
+                <!-- DOMAIN -->
+                <td>
+                    <span class="badge">{{ cert.domain }}</span>
+                </td>
+
+                <!-- CA ID -->
+                <td>
+                    {{ cert.ca_details['id'] if cert.ca_details and 'id' in cert.ca_details else 'N/A' }}
+                </td>
+
+                <!-- DETAILS -->
+                <td>
+                    <span class="toggle" onclick="toggleDetails(this)">
+                        Show Details
+                    </span>
+
+                    <div class="ca-box">
+
+                        <!-- INTERMEDIATE (safe for both spellings) -->
+                        <div class="details">
+                            <b>Intermediate:</b><br>
+                            {{
+                                cert.ca_details['intermediate'] if cert.ca_details and 'intermediate' in cert.ca_details
+                                else cert.ca_details['intermediates'] if cert.ca_details and 'intermediates' in cert.ca_details
+                                else 'N/A'
+                            }}
+                        </div>
+
+                        <!-- LEAF -->
+                        <div class="details">
+                            <b>Leaf:</b><br>
+                            {{ cert.ca_details['leaf'] if cert.ca_details and 'leaf' in cert.ca_details else 'N/A' }}
+                        </div>
+
+                        <!-- ROOT -->
+                        <div class="details">
+                            <b>Root:</b><br>
+                            {{ cert.ca_details['root'] if cert.ca_details and 'root' in cert.ca_details else 'N/A' }}
+                        </div>
+
+                        <!-- ISSUER -->
+                        <div class="details">
+                            <b>issuer:</b><br>
+                            {{ cert.ca_details['issuer'] if cert.ca_details and 'issuer' in cert.ca_details else 'N/A' }}
+                        </div>
+
+                        <!-- VALID FROM -->
+                        <div class="details">
+                            <b>valid_from:</b><br>
+                            {{ cert.ca_details['valid_from'] if cert.ca_details and 'valid_from' in cert.ca_details else 'N/A' }}
+                        </div>
+
+                        <!-- VALID TO -->
+                        <div class="details">
+                            <b>valid_to:</b><br>
+                            {{ cert.ca_details['valid_to'] if cert.ca_details and 'valid_to' in cert.ca_details else 'N/A' }}
+                        </div>
+
+                        <!-- CERTIFICATE -->
+                        <div class="details">
+                            <b>certificate:</b><br>
+                            <textarea readonly>
+{{ cert.ca_details['certificate'] if cert.ca_details and 'certificate' in cert.ca_details else 'N/A' }}
+                            </textarea>
+                        </div>
+
+                        <!-- PUBLIC KEY -->
+                        <div class="details">
+                            <b>public_key:</b><br>
+                            <textarea readonly>
+{{ cert.ca_details['public_key'] if cert.ca_details and 'public_key' in cert.ca_details else 'N/A' }}
+                            </textarea>
+                        </div>
+
+                    </div>
+                </td>
+
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+</div>
+
+</body>
+</html>
