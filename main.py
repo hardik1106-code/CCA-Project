@@ -5,15 +5,19 @@ from fastapi.responses import RedirectResponse
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from dotenv import load_dotenv
+import os
 
 
-
+load_dotenv()  # Load environment variables from .env file
 app = FastAPI()
 app.mount("/static",StaticFiles(directory="static"),name="static")
 templates= Jinja2Templates(directory="templates")
 
 # Connect to MongoDB
-client = MongoClient("mongodb+srv://hardikmalavliya_db_user:hardik1106@cluster0.8s5pnbn.mongodb.net/")
+
+MONGO_URL = os.getenv("MONGOURL")
+client = MongoClient(MONGO_URL)
 
 db1 = client["certdb"]
 db2 = client["cert_scanner"]
