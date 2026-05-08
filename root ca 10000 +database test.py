@@ -131,7 +131,7 @@ if __name__ == "__main__":
         exit()
 
     # MongoDB Connection
-    client = MongoClient("mongodb://localhost:27017/")
+    client = MongoClient("mongodb+srv://hardikmalavliya_db_user:hardik1106@cluster0.8s5pnbn.mongodb.net/cert_scanner")
     db = client["cert_scanner"]
     collection = db["certificates"]
 

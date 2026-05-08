@@ -13,7 +13,7 @@ app.mount("/static",StaticFiles(directory="static"),name="static")
 templates= Jinja2Templates(directory="templates")
 
 # Connect to MongoDB
-client = MongoClient("mongodb://localhost:27017/")
+client = MongoClient("mongodb+srv://hardikmalavliya_db_user:hardik1106@cluster0.8s5pnbn.mongodb.net/")
 
 db1 = client["certdb"]
 db2 = client["cert_scanner"]

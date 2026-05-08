@@ -7,7 +7,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pymongo import MongoClient
 
 # connect to MongoDB
-client = MongoClient("mongodb://localhost:27017/")
+client = MongoClient("mongodb+srv://hardikmalavliya_db_user:hardik1106@cluster0.8s5pnbn.mongodb.net/certdb")
 db = client["certdb"]
 collection = db["certificates"]
 
@@ -20,6 +20,9 @@ def fetch_cert(domain):
             with context.wrap_socket(sock, server_hostname=domain) as ssock:
                 cert_bin = ssock.getpeercert(True)
 
+        if cert_bin is None:
+            raise ValueError("Certificate not available")
+        
         cert = x509.load_der_x509_certificate(cert_bin, default_backend())
 
         # certificate
