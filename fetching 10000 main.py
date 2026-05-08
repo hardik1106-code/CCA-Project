@@ -4,10 +4,15 @@ from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from concurrent.futures import ThreadPoolExecutor
+from dotenv import load_dotenv
 from pymongo import MongoClient
+import os   
+
+load_dotenv()  # Load environment variables from .env file
 
 # connect to MongoDB
-client = MongoClient("mongodb+srv://hardikmalavliya_db_user:hardik1106@cluster0.8s5pnbn.mongodb.net/certdb")
+MONGO_URL = os.getenv("MONGOURL")
+client = MongoClient(MONGO_URL)
 db = client["certdb"]
 collection = db["certificates"]
 

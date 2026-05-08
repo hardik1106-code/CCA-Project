@@ -5,8 +5,13 @@ from cryptography.hazmat.backends import default_backend
 import warnings
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from cryptography.utils import CryptographyDeprecationWarning
+from dotenv import load_dotenv
 from pymongo import MongoClient
 from datetime import datetime
+import os
+
+
+load_dotenv()  # Load environment variables from .env file
 
 warnings.filterwarnings("ignore", category=CryptographyDeprecationWarning)
 
@@ -131,7 +136,8 @@ if __name__ == "__main__":
         exit()
 
     # MongoDB Connection
-    client = MongoClient("mongodb+srv://hardikmalavliya_db_user:hardik1106@cluster0.8s5pnbn.mongodb.net/cert_scanner")
+    MONGO_URL = os.getenv("MONGOURL")
+    client = MongoClient(MONGO_URL)
     db = client["cert_scanner"]
     collection = db["certificates"]
 
