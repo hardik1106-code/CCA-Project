@@ -1,4 +1,4 @@
-# CCA Project — Certificate Viewer
+# CCA Project — Certificate Viewer By Hardik
 
 A web-based **SSL/TLS Certificate Aggregation and Certificate Authority (CA) Analysis Platform** built with Python, FastAPI, and MongoDB.
 
@@ -13,9 +13,7 @@ It can:
 - Aggregate SSL/TLS certificate data
 - Store certificate metadata in MongoDB
 - Collect Certificate Authority information
-- Analyze certificate chains and CA relationships
 - Merge certificate and CA information
-- Normalize domain information
 - Provide a web-based certificate viewer
 - Support large-scale certificate collection using multithreading
 
@@ -30,7 +28,6 @@ This project can be useful for:
 - 🔎 Certificate and PKI researchers
 - 🏢 Organizations performing certificate inventory and analysis
 
-It provides a foundation for **certificate intelligence and cybersecurity analytics**.
 
 ## 🏗️ Architecture
 
@@ -283,23 +280,6 @@ By combining certificate records with CA and certificate-chain information, the 
 - Root CAs
 - CA relationships
 - Domain certificate inventories
-
-## 🤝 Contributing
-
-Contributions, improvements, bug fixes, and new analysis features are welcome.
-
-```bash
-git checkout -b feature/your-feature
-git add .
-git commit -m "Add your feature"
-git push origin feature/your-feature
-```
-
-Then open a Pull Request.
-
-## 📄 License
-
-No license information is specified in the project documentation. Add an appropriate license before distributing the project publicly.
 
 ## 🔗 Repository
 
