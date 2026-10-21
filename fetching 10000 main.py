@@ -16,7 +16,14 @@ client = MongoClient(MONGO_URL)
 db = client["certdb"]
 collection = db["certificates"]
 
-
+def get_ca_id(pem):
+    cert = x509.load_pem_x509_certificate(pem.encode())
+    try:
+        ext = cert.extensions.get_extension_for_oid(ExtensionOID.AUTHORITY_KEY_IDENTIFIER)
+        return ext.value.key_identifier.hex() if ext.value.key_identifier else None
+    except x509.ExtensionNotFound:
+        return None
+    
 def fetch_cert(domain):
     try:
         context = ssl.create_default_context()
@@ -49,7 +56,8 @@ def fetch_cert(domain):
             "valid_from": cert.not_valid_before_utc,
             "valid_to": cert.not_valid_after_utc,
             "certificate": certificate,
-            "public_key": public_key
+            "public_key": public_key,
+             "ca_id": get_ca_id(certificate), 
         }
 
         # insert into MongoDB

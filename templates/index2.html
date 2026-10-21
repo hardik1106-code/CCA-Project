@@ -38,87 +38,38 @@
 
         <tbody>
         {% for cert in certs %}
-            <tr>
+<tr>
+  <td><span class="badge">{{ cert.domain }}</span></td>
 
-                <!-- DOMAIN -->
-                <td>
-                    <span class="badge">{{ cert.domain }}</span>
-                </td>
+  <td>{{ cert.get('ca_id') or 'N/A' }}</td>
 
-                <!-- CA ID -->
-                <td>
-                    {{ cert.ca_details['id'] if cert.ca_details and 'id' in cert.ca_details else 'N/A' }}
-                </td>
+  <td>
+    <span class="toggle" onclick="toggleDetails(this)">Show Details</span>
+    <div class="ca-box">
 
-                <!-- DETAILS -->
-                <td>
-                    <span class="toggle" onclick="toggleDetails(this)">
-                        Show Details
-                    </span>
+      {% set ca = cert.ca_details or {} %}
 
-                    <div class="ca-box">
+      {% if ca.get('error') %}
+      <div class="details"><b>Scan error:</b><br>{{ ca.get('error') }}</div>
+      {% endif %}
 
-                        <!-- INTERMEDIATE (safe for both spellings) -->
-                        <div class="details">
-                            <b>Intermediate:</b><br>
-                            {{
-                                cert.ca_details['intermediate'] if cert.ca_details and 'intermediate' in cert.ca_details
-                                else cert.ca_details['intermediates'] if cert.ca_details and 'intermediates' in cert.ca_details
-                                else 'N/A'
-                            }}
-                        </div>
+      <div class="details"><b>Intermediate:</b><br>{{ ca.get('intermediates') or 'N/A' }}</div>
+      <div class="details"><b>Leaf:</b><br>{{ ca.get('leaf') or 'N/A' }}</div>
+      <div class="details"><b>Root:</b><br>{{ ca.get('root') or 'N/A' }}</div>
 
-                        <!-- LEAF -->
-                        <div class="details">
-                            <b>Leaf:</b><br>
-                            {{ cert.ca_details['leaf'] if cert.ca_details and 'leaf' in cert.ca_details else 'N/A' }}
-                        </div>
+      <div class="details"><b>issuer:</b><br>{{ cert.get('issuer') or 'N/A' }}</div>
+      <div class="details"><b>valid_from:</b><br>{{ cert.valid_from.strftime('%Y-%m-%d %H:%M') if cert.get('valid_from') else 'N/A' }}</div>
+      <div class="details"><b>valid_to:</b><br>{{ cert.valid_to.strftime('%Y-%m-%d %H:%M') if cert.get('valid_to') else 'N/A' }}</div>
 
-                        <!-- ROOT -->
-                        <div class="details">
-                            <b>Root:</b><br>
-                            {{ cert.ca_details['root'] if cert.ca_details and 'root' in cert.ca_details else 'N/A' }}
-                        </div>
+      <div class="details"><b>certificate:</b><br>
+        <textarea readonly>{{ cert.get('certificate') or 'N/A' }}</textarea></div>
+      <div class="details"><b>public_key:</b><br>
+        <textarea readonly>{{ cert.get('public_key') or 'N/A' }}</textarea></div>
 
-                        <!-- ISSUER -->
-                        <div class="details">
-                            <b>issuer:</b><br>
-                            {{ cert.ca_details['issuer'] if cert.ca_details and 'issuer' in cert.ca_details else 'N/A' }}
-                        </div>
-
-                        <!-- VALID FROM -->
-                        <div class="details">
-                            <b>valid_from:</b><br>
-                            {{ cert.ca_details['valid_from'] if cert.ca_details and 'valid_from' in cert.ca_details else 'N/A' }}
-                        </div>
-
-                        <!-- VALID TO -->
-                        <div class="details">
-                            <b>valid_to:</b><br>
-                            {{ cert.ca_details['valid_to'] if cert.ca_details and 'valid_to' in cert.ca_details else 'N/A' }}
-                        </div>
-
-                        <!-- CERTIFICATE -->
-                        <div class="details">
-                            <b>certificate:</b><br>
-                            <textarea readonly>
-{{ cert.ca_details['certificate'] if cert.ca_details and 'certificate' in cert.ca_details else 'N/A' }}
-                            </textarea>
-                        </div>
-
-                        <!-- PUBLIC KEY -->
-                        <div class="details">
-                            <b>public_key:</b><br>
-                            <textarea readonly>
-{{ cert.ca_details['public_key'] if cert.ca_details and 'public_key' in cert.ca_details else 'N/A' }}
-                            </textarea>
-                        </div>
-
-                    </div>
-                </td>
-
-            </tr>
-        {% endfor %}
+    </div>
+  </td>
+</tr>
+{% endfor %}
         </tbody>
     </table>
 

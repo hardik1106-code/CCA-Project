@@ -27,21 +27,16 @@ collection2 = db2["certificates"]  #root ca
 
 def get_combined_data():
     certs = list(collection1.find({}, {"_id": 0}))
-    
+
+    ca_map = {}
+    for doc in collection2.find({}, {"_id": 0}):
+        key = (doc.get("domain") or "").strip().lower()
+        ca_map[key] = doc
 
     for cert in certs:
         domain = (cert.get("domain") or "").strip().lower()
-
-        
-
-        ca_data = collection2.find_one({"domain": domain},{"_id": 0})
-
-        cert["domain"] = domain  # normalize output
-        cert["ca_details"] = ca_data if ca_data else {}
-
-
-        if cert["ca_details"]:
-            cert["ca_details"].pop("domain", None)
+        cert["domain"] = domain
+        cert["ca_details"] = ca_map.get(domain, {})
 
     return certs
 
