@@ -207,7 +207,7 @@ MONGOURL=your_mongodb_connection_string
 ### 5. Start the application
 
 ```bash
-uvicorn main:app --reload
+python -m uvicorn main:app --reload
 ```
 
 Then open:
