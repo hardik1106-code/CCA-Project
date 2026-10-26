@@ -1,28 +1,47 @@
-// toggle CA details
-    function toggleDetails(el) {
-        const box = el.nextElementSibling;
+(() => {
+  const $ = s => document.querySelector(s);
+  const root = document.documentElement;
 
-        if (box.style.display === "block") {
-            box.style.display = "none";
-            el.innerText = "Show Details";
-        } else {
-            box.style.display = "block";
-            el.innerText = "Hide Details";
-        }
-    }
+  try { root.dataset.theme = localStorage.getItem('theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); }
+  catch { root.dataset.theme = 'light'; }
+  $('#theme').onclick = () => {
+    root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark';
+    try { localStorage.setItem('theme', root.dataset.theme); } catch {}
+  };
 
-    // search filter
-    function searchTable() {
-        const input = document.getElementById("searchInput").value.toLowerCase();
-        const rows = document.querySelectorAll("#certTable tbody tr");
+  const flash = (b, msg) => { const o = b.textContent; b.textContent = msg; setTimeout(() => b.textContent = o, 1200); };
+  const save = (text, name) => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([text], { type: 'application/x-pem-file' }));
+    a.download = name; a.click(); URL.revokeObjectURL(a.href);
+  };
 
-        rows.forEach(row => {
-            const domain = row.children[0].innerText.toLowerCase();
+  const drawer = $('#drawer'), back = $('#backdrop'); let cur = null;
+  function open(r) {
+    cur = r; $('#dTitle').textContent = r.dataset.domain;
+    const pill = document.createElement('span');
+    pill.className = 'pill ' + r.dataset.status; pill.textContent = r.dataset.label;
+    $('#dSub').replaceChildren(pill);
+    $('#dBody').replaceChildren(r.querySelector('template').content.cloneNode(true));
+    drawer.classList.add('open'); back.classList.add('open'); drawer.setAttribute('aria-hidden', 'false'); $('#dClose').focus();
+  }
+  function close() { drawer.classList.remove('open'); back.classList.remove('open'); drawer.setAttribute('aria-hidden', 'true'); }
 
-            if (domain.includes(input)) {
-                row.style.display = "";
-            } else {
-                row.style.display = "none";
-            }
-        });
-    }
+  $('#certTable tbody').onclick = e => {
+    const r = e.target.closest('tr[data-domain]'); if (!r) return;
+    const c = e.target.closest('.caid');
+    if (c && r.dataset.ca) { navigator.clipboard.writeText(r.dataset.ca); flash(c, 'Copied'); return; }
+    open(r);
+  };
+  $('#dClose').onclick = close; back.onclick = close;
+  drawer.onclick = e => {
+    const b = e.target.closest('button[data-act]'); if (!b) return;
+    const box = b.closest('.pem'), text = box.querySelector('pre').textContent;
+    if (b.dataset.act === 'copy') { navigator.clipboard.writeText(text); flash(b, 'Copied'); }
+    else save(text, `${cur.dataset.domain}-${box.dataset.name}.pem`);
+  };
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') close();
+    if (e.key === '/' && !/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) { e.preventDefault(); $('#searchInput').focus(); }
+  });
+})();

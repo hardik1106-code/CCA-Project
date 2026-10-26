@@ -2,78 +2,108 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Certificate Dashboard</title>
-
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
-<link href="{{ url_for('static', path='/style2.css') }}" rel="stylesheet">
-<script src="/static/script2.js"></script>
-
+<link rel="icon" href="/static/icon.jpg">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link href="{{ url_for('static', path='/style2.css') }}?v=2" rel="stylesheet">
 </head>
-
 <body>
+{% macro th(key, label, cls='') %}
+<th class="{{ cls }}"><a href="{{ link(sort=key, order=('desc' if sort == key and order == 'asc' else 'asc'), page=1) }}">{{ label }}{% if sort == key %} <i>{{ '▲' if order == 'asc' else '▼' }}</i>{% endif %}</a></th>
+{% endmacro %}
 
-<header>
-    Certificate & CA Dashboard
+<header class="top">
+  <a class="brand" href="/"><span>Certificate &amp; CA Dashboard</span></a>
+  <button id="theme" class="ghost">Switch theme</button>
 </header>
 
-<div class="container">
+<main class="container">
+  <section class="stats">
+    {% for key, label, cls in [('all','Domains scanned',''),('valid','Valid','ok'),('soon','Expiring within 30 days','warn'),('expired','Expired','bad')] %}
+    <a class="stat {{ cls }} {{ 'on' if status == key or (key == 'all' and status == 'all') }}" href="{{ link(status=('all' if status == key else key), page=1) }}">
+      <span>{{ label }}</span><strong>{{ '{:,}'.format(stats[key]) }}</strong>
+    </a>
+    {% endfor %}
+  </section>
+  <div class="bar" aria-hidden="true">
+    {% for key in ['valid','soon','expired'] %}<i class="{{ key }}" style="width:{{ (stats[key] / stats['all'] * 100) if stats['all'] else 0 }}%"></i>{% endfor %}
+  </div>
 
-    <input 
-        type="text" 
-        class="search-box"
-        placeholder="Search by domain..."
-        onkeyup="searchTable()"
-        id="searchInput"
-        style="width:100%; padding:10px; margin-bottom:15px;"
-    >
+  <form class="toolbar" method="get" action="/gov.in">
+    <input type="hidden" name="status" value="{{ status }}">
+    <input type="hidden" name="sort" value="{{ sort }}">
+    <input type="hidden" name="order" value="{{ order }}">
+    <input id="searchInput" class="search" type="search" name="q" value="{{ q }}" placeholder="Search by domain (press / to focus)" autocomplete="off">
+    <select name="issuer" aria-label="Filter by issuer" onchange="this.form.submit()">
+      <option value="">All issuers</option>
+      {% for name, n in issuers %}<option value="{{ name }}" {{ 'selected' if name == issuer }}>{{ name }} ({{ n }})</option>{% endfor %}
+    </select>
+    <select name="size" aria-label="Rows per page" onchange="this.form.submit()">
+      {% for s in [25, 50, 100, 200] %}<option value="{{ s }}" {{ 'selected' if s == size }}>{{ s }} per page</option>{% endfor %}
+    </select>
+    <button class="ghost2">Search</button>
+    <a class="ghost2" href="{{ export_link }}">Export CSV</a>
+  </form>
 
-    <table id="certTable">
-        <thead>
-            <tr>
-                <th>Domain</th>
-                <th>CA ID</th>
-                <th>CA Details</th>
-            </tr>
-        </thead>
+  <div class="tablewrap">
+  <table id="certTable">
+    <thead><tr>
+      {{ th('domain', 'Domain') }}{{ th('issuer', 'Issuer') }}{{ th('ca', 'CA ID', 'hs') }}{{ th('exp', 'Expires') }}<th></th>
+    </tr></thead>
+    <tbody>
+    {% for cert in certs %}
+    {% set ca = cert.ca_details or {} %}
+    {% set leaf = ca.get('leaf') or {} %}
+    <tr data-domain="{{ cert.domain }}" data-ca="{{ cert.get('ca_id') or '' }}" data-status="{{ cert.status }}" data-label="{{ cert.label }}">
+      <td class="dom">{{ cert.domain }}</td>
+      <td class="iss"><b>{{ cert.issuer_cn }}</b><small>{{ cert.issuer_org }}</small></td>
+      <td class="mono caid hs" title="Click to copy">{{ cert.get('ca_id') or 'N/A' }}</td>
+      <td class="exp"><span class="pill {{ cert.status }}">{{ cert.label }}</span><small>{{ cert.valid_to.strftime('%Y-%m-%d') if cert.get('valid_to') else '' }}</small></td>
+      <td><button class="view">Details</button>
+      <template>
+        {% if ca.get('error') %}<p class="note">Scan error: {{ ca.get('error') }}</p>{% endif %}
+        <h4>Certificate chain</h4>
+        <ol class="chain">
+          <li class="leaf"><b>Leaf</b><span>{{ leaf.get('subject') or cert.get('subject') or 'N/A' }}</span></li>
+          {% for i in ca.get('intermediates') or [] %}<li class="mid"><b>Intermediate</b><span>{{ i.get('subject') or 'N/A' }}</span></li>{% endfor %}
+          <li class="rt"><b>Root</b><span>{{ ca.get('root') or 'N/A' }}</span></li>
+        </ol>
+        <h4>Details</h4>
+        <dl>
+          <dt>Issuer</dt><dd>{{ cert.get('issuer') or 'N/A' }}</dd>
+          <dt>CA ID</dt><dd class="mono">{{ cert.get('ca_id') or 'N/A' }}</dd>
+          <dt>Valid from</dt><dd>{{ cert.valid_from.strftime('%Y-%m-%d %H:%M') if cert.get('valid_from') else 'N/A' }}</dd>
+          <dt>Valid to</dt><dd>{{ cert.valid_to.strftime('%Y-%m-%d %H:%M') if cert.get('valid_to') else 'N/A' }}</dd>
+        </dl>
+        <div class="pem" data-name="certificate"><div class="ph"><h4>Certificate</h4><span><button data-act="copy">Copy</button><button data-act="dl">Download .pem</button></span></div><pre>{{ cert.get('certificate') or 'N/A' }}</pre></div>
+        <div class="pem" data-name="public_key"><div class="ph"><h4>Public key</h4><span><button data-act="copy">Copy</button><button data-act="dl">Download .pem</button></span></div><pre>{{ cert.get('public_key') or 'N/A' }}</pre></div>
+      </template></td>
+    </tr>
+    {% else %}
+    <tr class="empty"><td colspan="5">No domains match these filters. <a class="view" href="/gov.in">Clear filters</a></td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
 
-        <tbody>
-        {% for cert in certs %}
-<tr>
-  <td><span class="badge">{{ cert.domain }}</span></td>
+  <nav class="pager" aria-label="Pagination">
+    <span>{{ '{:,}'.format(total) }} domains &middot; page {{ page }} of {{ pages }}</span>
+    <span class="pg">
+      {% if page > 1 %}<a class="ghost2" href="{{ link(page=page-1) }}">Previous</a>{% endif %}
+      {% for p in range([page-2, 1]|max, [page+2, pages]|min + 1) %}
+        <a class="ghost2 {{ 'cur' if p == page }}" href="{{ link(page=p) }}">{{ p }}</a>
+      {% endfor %}
+      {% if page < pages %}<a class="ghost2" href="{{ link(page=page+1) }}">Next</a>{% endif %}
+    </span>
+  </nav>
+</main>
 
-  <td>{{ cert.get('ca_id') or 'N/A' }}</td>
-
-  <td>
-    <span class="toggle" onclick="toggleDetails(this)">Show Details</span>
-    <div class="ca-box">
-
-      {% set ca = cert.ca_details or {} %}
-
-      {% if ca.get('error') %}
-      <div class="details"><b>Scan error:</b><br>{{ ca.get('error') }}</div>
-      {% endif %}
-
-      <div class="details"><b>Intermediate:</b><br>{{ ca.get('intermediates') or 'N/A' }}</div>
-      <div class="details"><b>Leaf:</b><br>{{ ca.get('leaf') or 'N/A' }}</div>
-      <div class="details"><b>Root:</b><br>{{ ca.get('root') or 'N/A' }}</div>
-
-      <div class="details"><b>issuer:</b><br>{{ cert.get('issuer') or 'N/A' }}</div>
-      <div class="details"><b>valid_from:</b><br>{{ cert.valid_from.strftime('%Y-%m-%d %H:%M') if cert.get('valid_from') else 'N/A' }}</div>
-      <div class="details"><b>valid_to:</b><br>{{ cert.valid_to.strftime('%Y-%m-%d %H:%M') if cert.get('valid_to') else 'N/A' }}</div>
-
-      <div class="details"><b>certificate:</b><br>
-        <textarea readonly>{{ cert.get('certificate') or 'N/A' }}</textarea></div>
-      <div class="details"><b>public_key:</b><br>
-        <textarea readonly>{{ cert.get('public_key') or 'N/A' }}</textarea></div>
-
-    </div>
-  </td>
-</tr>
-{% endfor %}
-        </tbody>
-    </table>
-
-</div>
-
+<div id="backdrop"></div>
+<aside id="drawer" aria-hidden="true">
+  <div class="dh"><div><h3 id="dTitle"></h3><div id="dSub"></div></div><button id="dClose" class="ghost2">Close</button></div>
+  <div id="dBody"></div>
+</aside>
+<script src="/static/script2.js?v=2"></script>
 </body>
 </html>

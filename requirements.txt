@@ -1,5 +1,10 @@
+# scanning scripts
+cryptography>=42
+python-dotenv
+requests
+beautifulsoup4
+pymongo
+# web app
 fastapi
 uvicorn
-pymongo
 jinja2
-aiofiles
