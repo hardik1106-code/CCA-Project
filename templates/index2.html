@@ -5,8 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Certificate Dashboard</title>
 <link rel="icon" href="/static/icon.jpg">
-<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-<link href="{{ url_for('static', path='/style2.css') }}?v=2" rel="stylesheet">
+<link href="{{ url_for('static', path='/style2.css') }}?v=3" rel="stylesheet">
 </head>
 <body>
 {% macro th(key, label, cls='') %}
@@ -26,9 +25,6 @@
     </a>
     {% endfor %}
   </section>
-  <div class="bar" aria-hidden="true">
-    {% for key in ['valid','soon','expired'] %}<i class="{{ key }}" style="width:{{ (stats[key] / stats['all'] * 100) if stats['all'] else 0 }}%"></i>{% endfor %}
-  </div>
 
   <form class="toolbar" method="get" action="/gov.in">
     <input type="hidden" name="status" value="{{ status }}">
@@ -104,6 +100,6 @@
   <div class="dh"><div><h3 id="dTitle"></h3><div id="dSub"></div></div><button id="dClose" class="ghost2">Close</button></div>
   <div id="dBody"></div>
 </aside>
-<script src="/static/script2.js?v=2"></script>
+<script src="/static/script2.js?v=3"></script>
 </body>
 </html>
