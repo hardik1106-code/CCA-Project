@@ -123,8 +123,8 @@ CCA-Project-main/
 ├── requirements.txt
 ├── domains.txt
 │
-├── Fetching test.py
-├── ct logs test.py
+├── dedupe_certs.py
+├── backfill_ca_id.py
 ├── domain scrapper.py
 ├── fetching 10000 main.py
 ├── root ca 10000 +database test.py
@@ -223,8 +223,8 @@ The repository contains supporting scripts for certificate and domain collection
 | Script | Purpose |
 |---|---|
 | `domain scrapper.py` | Collects domains |
-| `ct logs test.py` | Certificate Transparency log testing |
-| `Fetching test.py` | Certificate fetching |
+| `dedupe_certs.py` | Remove Duplicate Certificates |
+| `backfill_ca_id.py` | Fetches CA ID |
 | `fetching 10000 main.py` | Large-scale certificate fetching |
 | `root ca 10000 +database test.py` | Root CA and certificate-chain processing |
 
