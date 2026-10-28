@@ -9,6 +9,12 @@
     try { localStorage.setItem('theme', root.dataset.theme); } catch {}
   };
 
+
+  // the X button of type="search" only clears the text; reload the list when a search was active
+  $('#searchInput').addEventListener('input', e => {
+    if (!e.target.value && new URLSearchParams(location.search).get('q')) e.target.form.submit();
+  });
+
   const flash = (b, msg) => { const o = b.textContent; b.textContent = msg; setTimeout(() => b.textContent = o, 1200); };
   const save = (text, name) => {
     const a = document.createElement('a');
