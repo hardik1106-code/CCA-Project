@@ -1,42 +1,50 @@
+import re
 import requests
-from bs4 import BeautifulSoup
-from urllib.parse import urlparse
 from datetime import datetime, timedelta
 
+# Set a specific date as "YYYY-MM-DD", or leave as None for the last Wednesday
+SPECIFIC_DATE =None
 
-def get_last_saturday():
+if SPECIFIC_DATE:
+    date_str =SPECIFIC_DATE
+else:
     today = datetime.today()
-    days_since_saturday =(today.weekday() - 5) % 7
-    last_saturday =today-timedelta(days=days_since_saturday)
-    return last_saturday.strftime("%Y-%m-%d")
+    last_wednesday = today - timedelta(days=(today.weekday() - 2) % 7)
+    date_str = last_wednesday.strftime("%Y-%m-%d")
+
+url = f"https://subdomainfinder.c99.nl/scans/{date_str}/gov.in"
+print("Fetching:", url)
 
 
-def scrape_gov_domains():
-    date_str = get_last_saturday()
-    url = f"https://subdomainfinder.c99.nl/scans/{date_str}/gov.in"
-
-    print("Fetching:", url)
-
-    response = requests.get(url, timeout=10)
-    soup = BeautifulSoup(response.text, "html.parser")
-
-    domains = set()
-
-    for link in soup.find_all("a", href=True):
-        href = link["href"]
-
-        if ".gov.in" in href:
-            domain = urlparse(href).netloc
-            if domain:
-                domains.add(domain)
-
-    return list(domains)
+def find_domains(html):
+    return set(re.findall(r"[a-z0-9.-]+\.gov\.in", html.lower()))
 
 
-domains = scrape_gov_domains()
+# Try 1: plain request (fast, no browser)
+response = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=15)
+print("Status:", response.status_code)
+domains = find_domains(response.text)
+
+# Try 2: if the list is loaded by JavaScript, use Chrome in the background (no window)
+if not domains:
+    print("Nothing found with requests, trying hidden Chrome...")
+    import time
+    from selenium import webdriver
+
+    options = webdriver.ChromeOptions()
+    options.add_argument("--headless=new")
+    driver = webdriver.Chrome(options=options)
+    driver.get(url)
+    time.sleep(10)
+    html = driver.page_source
+    driver.quit()
+    domains = find_domains(html)
+
+    with open("page_debug.html", "w", encoding="utf-8") as f:
+        f.write(html)   # saved so we can inspect it if still 0
 
 print("Total domains found:", len(domains))
 
 with open("domains.txt", "w") as f:
-    for d in domains:
+    for d in sorted(domains):
         f.write(d + "\n")

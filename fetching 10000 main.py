@@ -1,13 +1,13 @@
 import os
 import socket
 import ssl
+from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
-from cryptography.x509.oid import ExtensionOID
 from dotenv import load_dotenv
 from pymongo import MongoClient
 
@@ -27,13 +27,26 @@ def get_ca_id(pem):
         return None
 
 
+def get_der(domain, verify=True, timeout=8):
+    ctx = ssl.create_default_context()
+    if not verify:  # we only READ the certificate here, we do not trust it
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    with socket.create_connection((domain, 443), timeout=timeout) as sock:
+        with ctx.wrap_socket(sock, server_hostname=domain) as ssock:
+            return ssock.getpeercert(True)
+
+
 def fetch_cert(domain):
     domain = domain.strip().lower()
+    verify_error = None
     try:
-        context = ssl.create_default_context()
-        with socket.create_connection((domain, 443), timeout=5) as sock:
-            with context.wrap_socket(sock, server_hostname=domain) as ssock:
-                cert_bin = ssock.getpeercert(True)
+        try:
+            cert_bin = get_der(domain)
+        except ssl.SSLCertVerificationError as e:
+            # expired / self-signed / wrong hostname: still read and store the certificate
+            verify_error = e.verify_message
+            cert_bin = get_der(domain, verify=False)
 
         if cert_bin is None:
             raise ValueError("Certificate not available")
@@ -54,25 +67,38 @@ def fetch_cert(domain):
             "certificate": certificate,
             "public_key": public_key,
             "ca_id": get_ca_id(certificate),
+            "verify_error": verify_error,  # None = trusted certificate
             "scanned_at": datetime.now(timezone.utc),
         }
-
-        # upsert: re-running the scan updates the record instead of duplicating it
         collection.update_one({"domain": domain}, {"$set": data}, upsert=True)
-        print("Stored:", domain)
+        print("Stored:", domain, f"({verify_error})" if verify_error else "")
+        return "stored_unverified" if verify_error else "stored"
 
-    except socket.timeout:
-        print("Timeout:", domain)
-    except Exception as e:  # print the reason so bugs are not hidden
-        print("Error fetching:", domain, "->", repr(e))
+    except socket.gaierror:
+        print("DNS failed:", domain);               return "dns_failed"
+    except (socket.timeout, TimeoutError):
+        print("Timeout:", domain);                  return "timeout"
+    except ConnectionRefusedError:
+        print("Refused (no HTTPS):", domain);       return "refused"
+    except ConnectionResetError:
+        print("Reset by server:", domain);          return "reset"
+    except ssl.SSLError as e:
+        print("SSL error:", domain, "->", e.reason); return "ssl_error"
+    except OSError as e:
+        print("Network error:", domain, "->", e);  return "network_error"
+    except Exception as e:
+        print("Error fetching:", domain, "->", repr(e)); return "other"
 
 
 if __name__ == "__main__":
-    # needs duplicate-free data: run dedupe_certs.py once if the collection already has duplicates
     collection.create_index("domain", unique=True)
 
     with open("domains.txt") as f:
         domains = [d.strip() for d in f if d.strip()]
 
     with ThreadPoolExecutor(max_workers=15) as executor:
-        executor.map(fetch_cert, domains)
+        results = list(executor.map(fetch_cert, domains))
+
+    print("\n--- Summary ---")
+    for status, n in Counter(results).most_common():
+        print(f"{status:18} {n}")
