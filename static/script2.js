@@ -27,7 +27,12 @@
     cur = r; $('#dTitle').textContent = r.dataset.domain;
     const pill = document.createElement('span');
     pill.className = 'pill ' + r.dataset.status; pill.textContent = r.dataset.label;
-    $('#dSub').replaceChildren(pill);
+    const badge = [pill];
+    if (r.dataset.verr) {
+      const nt = document.createElement('span');
+      nt.className = 'pill untrusted'; nt.textContent = 'Not trusted'; nt.title = r.dataset.verr; badge.push(nt);
+    }
+    $('#dSub').replaceChildren(...badge);
     $('#dBody').replaceChildren(r.querySelector('template').content.cloneNode(true));
     drawer.classList.add('open'); back.classList.add('open'); drawer.setAttribute('aria-hidden', 'false'); $('#dClose').focus();
   }

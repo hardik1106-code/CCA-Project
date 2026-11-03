@@ -1,50 +1,57 @@
-import re
-import requests
+import time
 from datetime import datetime, timedelta
+from urllib.parse import urlparse
 
-# Set a specific date as "YYYY-MM-DD", or leave as None for the last Wednesday
-SPECIFIC_DATE =None
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
 
-if SPECIFIC_DATE:
-    date_str =SPECIFIC_DATE
-else:
-    today = datetime.today()
-    last_wednesday = today - timedelta(days=(today.weekday() - 2) % 7)
-    date_str = last_wednesday.strftime("%Y-%m-%d")
-
-url = f"https://subdomainfinder.c99.nl/scans/{date_str}/gov.in"
-print("Fetching:", url)
+URL = "https://subdomainfinder.c99.nl/scans/{date}/gov.in"
 
 
-def find_domains(html):
-    return set(re.findall(r"[a-z0-9.-]+\.gov\.in", html.lower()))
+def get_domains(driver, date):
+    driver.get(URL.format(date=date))
+    time.sleep(5)  # wait for the page to load
+    found = set()
+    for a in driver.find_elements(By.TAG_NAME, "a"):
+        host = urlparse(a.get_attribute("href") or "").netloc.lower()
+        if host.endswith(".gov.in"):
+            found.add(host)
+    return found
 
 
-# Try 1: plain request (fast, no browser)
-response = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=15)
-print("Status:", response.status_code)
-domains = find_domains(response.text)
+options = Options()
+options.add_argument("--headless=new")
+driver = webdriver.Chrome(options=options)
 
-# Try 2: if the list is loaded by JavaScript, use Chrome in the background (no window)
-if not domains:
-    print("Nothing found with requests, trying hidden Chrome...")
-    import time
-    from selenium import webdriver
+# c99 may not have a scan for every day, so try the last 14 days until one has domains
+new_domains = set()
+for i in range(14):
+    date = (datetime.today() - timedelta(days=i)).strftime("%Y-%m-%d")
+    try:
+        new_domains = get_domains(driver, date)
+    except Exception as e:
+        print(date, "failed:", e)
+        continue
+    print(date, "->", len(new_domains), "domains")
+    if new_domains:
+        break
+driver.quit()
 
-    options = webdriver.ChromeOptions()
-    options.add_argument("--headless=new")
-    driver = webdriver.Chrome(options=options)
-    driver.get(url)
-    time.sleep(10)
-    html = driver.page_source
-    driver.quit()
-    domains = find_domains(html)
+# never overwrite domains.txt with an empty result
+if not new_domains:
+    print("No domains found, domains.txt was not changed")
+    raise SystemExit
 
-    with open("page_debug.html", "w", encoding="utf-8") as f:
-        f.write(html)   # saved so we can inspect it if still 0
+# keep the old domains and add the new ones
+try:
+    with open("domains.txt") as f:
+        old_domains = set(f.read().split())
+except FileNotFoundError:
+    old_domains = set()
 
-print("Total domains found:", len(domains))
-
+all_domains = old_domains | new_domains
 with open("domains.txt", "w") as f:
-    for d in sorted(domains):
-        f.write(d + "\n")
+    f.write("\n".join(sorted(all_domains)) + "\n")
+
+print(f"domains.txt now has {len(all_domains)} domains ({len(all_domains - old_domains)} new)")

@@ -23,6 +23,8 @@ collection1 = client["certdb"]["certificates"]        # leaf certificate data
 collection2 = client["cert_scanner"]["certificates"]  # chain / root CA data
 
 SORTS = {"domain": "domain", "issuer": "issuer", "ca": "ca_id", "exp": "valid_to"}
+NO_ERROR = {"$in": [None, ""]}       # verify_error empty or missing  -> trusted
+HAS_ERROR = {"$nin": [None, ""]}     # verify_error present           -> not trusted
 
 
 def utcnow():
@@ -30,8 +32,9 @@ def utcnow():
 
 
 def field(s, key="CN"):
-    m = re.search(r"(?:^|[,(])" + key + r"=([^,)>]+)", s or "")
-    return m.group(1) if m else ""
+    """Reads CN / O from an issuer string (RFC 4514 'CN=R13,O=Let's Encrypt,C=US' or the old '<Name(...)>' format)."""
+    m = re.search(r"(?:^|[,(])" + key + r"=((?:\\.|[^,)>\\])+)", s or "")
+    return re.sub(r"\\(.)", r"\1", m.group(1)) if m else ""
 
 
 def build_filter(q="", status="all", issuer=""):
@@ -42,10 +45,14 @@ def build_filter(q="", status="all", issuer=""):
         f["valid_to"] = {"$lt": now}
     elif status == "soon":
         f["valid_to"] = {"$gte": now, "$lte": now + timedelta(days=30)}
+        f["verify_error"] = NO_ERROR
     elif status == "valid":
         f["valid_to"] = {"$gt": now + timedelta(days=30)}
+        f["verify_error"] = NO_ERROR
+    elif status == "untrusted":
+        f["verify_error"] = HAS_ERROR
     if issuer:
-        f["issuer"] = {"$regex": "CN=" + re.escape(issuer) + "[,)]"}
+        f["issuer"] = {"$regex": "(?:^|[,(])CN=" + re.escape(issuer.replace(",", "\\,")) + "(?:[,)]|$)"}
     return f
 
 
@@ -54,6 +61,7 @@ def decorate(c, ca_map, now):
     iss = c.get("issuer") or ""
     c["issuer_cn"] = field(iss) or field(iss, "O") or "Unknown"
     c["issuer_org"] = field(iss, "O")
+    c["untrusted"] = bool(c.get("verify_error"))
     to = c.get("valid_to")
     if to:
         days = (to.replace(tzinfo=None) - now).days
@@ -61,12 +69,14 @@ def decorate(c, ca_map, now):
         c["label"] = f"Expired {-days} days ago" if days < 0 else f"{days} days left"
     else:
         c["status"], c["label"] = "unknown", "No date"
+    # an untrusted certificate must never be shown in green
+    c["pill_class"] = "unknown" if c["untrusted"] and c["status"] in ("valid", "soon") else c["status"]
     c["ca_details"] = ca_map.get(c["domain"], {})
 
 
 def get_stats():
     s = {"all": collection1.count_documents({})}
-    for k in ("valid", "soon", "expired"):
+    for k in ("valid", "soon", "expired", "untrusted"):
         s[k] = collection1.count_documents(build_filter(status=k))
     return s
 
@@ -135,9 +145,10 @@ def certificates(
 def export_csv(q: str = "", status: str = "all", issuer: str = ""):
     buf = io.StringIO()
     w = csv.writer(buf)
-    w.writerow(["domain", "issuer", "ca_id", "valid_from", "valid_to"])
-    for c in collection1.find(build_filter(q, status, issuer),
-                              {"_id": 0, "domain": 1, "issuer": 1, "ca_id": 1, "valid_from": 1, "valid_to": 1}).sort("domain", 1):
-        w.writerow([c.get("domain"), field(c.get("issuer")), c.get("ca_id"), c.get("valid_from"), c.get("valid_to")])
+    w.writerow(["domain", "issuer", "ca_id", "valid_from", "valid_to", "verify_error"])
+    cols = {"_id": 0, "domain": 1, "issuer": 1, "ca_id": 1, "valid_from": 1, "valid_to": 1, "verify_error": 1}
+    for c in collection1.find(build_filter(q, status, issuer), cols).sort("domain", 1):
+        w.writerow([c.get("domain"), field(c.get("issuer")), c.get("ca_id"),
+                    c.get("valid_from"), c.get("valid_to"), c.get("verify_error") or ""])
     return Response(buf.getvalue(), media_type="text/csv",
                     headers={"Content-Disposition": "attachment; filename=certificates.csv"})

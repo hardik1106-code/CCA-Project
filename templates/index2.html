@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Certificate Dashboard</title>
 <link rel="icon" href="/static/icon.jpg">
-<link href="{{ url_for('static', path='/style2.css') }}?v=3" rel="stylesheet">
+<link href="{{ url_for('static', path='/style2.css') }}?v=5" rel="stylesheet">
 </head>
 <body>
 {% macro th(key, label, cls='') %}
@@ -19,7 +19,7 @@
 
 <main class="container">
   <section class="stats">
-    {% for key, label, cls in [('all','Domains scanned',''),('valid','Valid','ok'),('soon','Expiring within 30 days','warn'),('expired','Expired','bad')] %}
+    {% for key, label, cls in [('all','Domains scanned',''),('valid','Valid','ok'),('soon','Expiring within 30 days','warn'),('expired','Expired','bad'),('untrusted','Untrusted','bad')] %}
     <a class="stat {{ cls }} {{ 'on' if status == key or (key == 'all' and status == 'all') }}" href="{{ '/gov.in' if key == 'all' else link(status=('all' if status == key else key), page=1) }}">
       <span>{{ label }}</span><strong>{{ '{:,}'.format(stats[key]) }}</strong>
     </a>
@@ -52,11 +52,11 @@
     {% for cert in certs %}
     {% set ca = cert.ca_details or {} %}
     {% set leaf = ca.get('leaf') or {} %}
-    <tr data-domain="{{ cert.domain }}" data-ca="{{ cert.get('ca_id') or '' }}" data-status="{{ cert.status }}" data-label="{{ cert.label }}">
+    <tr data-domain="{{ cert.domain }}" data-ca="{{ cert.get('ca_id') or '' }}" data-status="{{ cert.pill_class }}" data-label="{{ cert.label }}" data-verr="{{ cert.verify_error or '' }}">
       <td class="dom">{{ cert.domain }}</td>
       <td class="iss"><b>{{ cert.issuer_cn }}</b><small>{{ cert.issuer_org }}</small></td>
       <td class="mono caid hs" title="Click to copy">{{ cert.get('ca_id') or 'N/A' }}</td>
-      <td class="exp"><span class="pill {{ cert.status }}">{{ cert.label }}</span><small>{{ cert.valid_to.strftime('%Y-%m-%d') if cert.get('valid_to') else '' }}</small></td>
+      <td class="exp"><span class="pill {{ cert.pill_class }}">{{ cert.label }}</span>{% if cert.untrusted %}<span class="pill untrusted" title="{{ cert.verify_error }}">Not trusted</span>{% endif %}<small>{{ cert.valid_to.strftime('%Y-%m-%d') if cert.get('valid_to') else '' }}</small></td>
       <td><button class="view">Details</button>
       <template>
         {% if ca.get('error') %}<p class="note">Scan error: {{ ca.get('error') }}</p>{% endif %}
@@ -72,6 +72,7 @@
           <dt>CA ID</dt><dd class="mono">{{ cert.get('ca_id') or 'N/A' }}</dd>
           <dt>Valid from</dt><dd>{{ cert.valid_from.strftime('%Y-%m-%d %H:%M') if cert.get('valid_from') else 'N/A' }}</dd>
           <dt>Valid to</dt><dd>{{ cert.valid_to.strftime('%Y-%m-%d %H:%M') if cert.get('valid_to') else 'N/A' }}</dd>
+          <dt>Trust</dt><dd>{% if cert.untrusted %}<span class="bad-text">Not trusted: {{ cert.verify_error }}</span>{% else %}Trusted{% endif %}</dd>
         </dl>
         <div class="pem" data-name="certificate"><div class="ph"><h4>Certificate</h4><span><button data-act="copy">Copy</button><button data-act="dl">Download .pem</button></span></div><pre>{{ cert.get('certificate') or 'N/A' }}</pre></div>
         <div class="pem" data-name="public_key"><div class="ph"><h4>Public key</h4><span><button data-act="copy">Copy</button><button data-act="dl">Download .pem</button></span></div><pre>{{ cert.get('public_key') or 'N/A' }}</pre></div>
@@ -101,6 +102,6 @@
   <div class="dh"><div><h3 id="dTitle"></h3><div id="dSub"></div></div><button id="dClose" class="ghost2">Close</button></div>
   <div id="dBody"></div>
 </aside>
-<script src="/static/script2.js?v=4"></script>
+<script src="/static/script2.js?v=5"></script>
 </body>
 </html>
